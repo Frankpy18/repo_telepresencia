@@ -1,0 +1,19 @@
+📢 EQUIPO -  50% DE DSC x 12 MESES A LINEAS ADICIONALES
+
+¿Cómo funciona?
+
+✅ La línea con menor cargo fijo es la que recibe el descuento 
+
+Ejemplo gráfico:
+
+Línea en claro: 95.90
+Línea Nueva: 69.90 aplicara dsc-> Paga S/34.95 x 12 meses
+
+✅ La línea con mayor antigüedad aplicará el descuento 
+
+Ejemplo gráfico: 
+
+Línea en claro: 69.90
+Línea nueva: 69.90
+
+DSC aplicará a la línea con mayor antigüedad ( línea en claro)

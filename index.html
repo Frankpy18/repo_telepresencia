@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repositorio Cross Selling</title>
+    <style>
+        :root { --primary: #d52b1e; --dark: #333; --light: #f4f4f9; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--light); margin: 0; padding: 0; color: var(--dark); }
+        
+        header { background-color: var(--primary); color: white; padding: 25px 20px; text-align: center; }
+        header h1 { margin: 0; font-size: 1.8em; }
+        header p { margin: 5px 0 0 0; opacity: 0.9; font-size: 0.95em; }
+
+        .status-bar { text-align: center; padding: 10px 20px; font-size: 0.85em; color: #777; background: #fff; border-bottom: 1px solid #eee; }
+        .status-bar.error { color: var(--primary); font-weight: 600; }
+
+        .upload-section { text-align: center; background: #fff; padding: 25px; border-bottom: 1px solid #ddd; }
+        .upload-btn { background: var(--dark); color: white; padding: 12px 25px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+        .upload-btn:hover { background: #555; }
+
+        /* LAYOUT PRINCIPAL */
+        .layout-container { max-width: 1300px; margin: 25px auto; padding: 0 20px; display: none; gap: 30px; align-items: flex-start; }
+        
+        /* Columna Izquierda (Barra Vertical de Meses) */
+        .sidebar { width: 220px; position: sticky; top: 25px; flex-shrink: 0; }
+        .months-tabs { display: flex; flex-direction: column; gap: 10px; }
+        .btn-month { padding: 12px 18px; background-color: #e0e0e0; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.3s; text-transform: uppercase; color: #555; width: 100%; text-align: left; }
+        .btn-month.active, .btn-month:hover { background-color: var(--primary); color: white; box-shadow: 0 2px 5px rgba(213, 43, 30, 0.3); padding-left: 25px; }
+
+        /* Columna Derecha (Buscador y Galería) */
+        .main-content { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        
+        #searchInput { width: 100%; box-sizing: border-box; padding: 12px 15px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; transition: border-color 0.3s; }
+        #searchInput:focus { border-color: var(--primary); }
+
+        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .flyer-card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.06); transition: transform 0.3s, box-shadow 0.3s; display: flex; flex-direction: column; cursor: pointer; }
+        .flyer-card:hover { transform: translateY(-5px); box-shadow: 0 6px 15px rgba(0,0,0,0.12); }
+        .flyer-img { width: 100%; height: 280px; object-fit: cover; background-color: #eee; }
+        
+        .flyer-info { padding: 15px; text-align: center; border-top: 1px solid #eee; }
+        .flyer-name { margin: 0 0 6px 0; font-size: 1.05em; text-transform: capitalize; }
+        .tag-month { display: inline-block; font-size: 0.75em; color: var(--primary); text-transform: uppercase; font-weight: bold; background: #ffebeb; padding: 3px 8px; border-radius: 4px; }
+
+        .no-results { text-align: center; grid-column: 1 / -1; font-size: 1.1em; color: #777; padding: 40px; }
+
+        /* Responsividad para móviles */
+        @media (max-width: 850px) {
+            .layout-container { flex-direction: column; }
+            .sidebar { width: 100%; position: static; }
+            .months-tabs { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+            .btn-month { width: auto; text-align: center; border-radius: 20px; }
+            .btn-month.active, .btn-month:hover { padding-left: 18px; }
+        }
+
+        /* MODAL Y ZOOM INTERACTIVO */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); justify-content: center; align-items: center; }
+        .modal-container { display: flex; flex-direction: row; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); width: 95%; max-width: 1250px; height: 85vh; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: zoomIn 0.3s ease; }
+        
+        .modal-left { flex: 1.4; background: rgba(0, 0, 0, 0.05); display: flex; justify-content: center; align-items: center; padding: 15px; overflow: hidden; position: relative; cursor: zoom-in; }
+        .modal-left img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.15s ease-out; }
+        .modal-left.is-zoomed { cursor: zoom-out; }
+        .modal-left.is-zoomed img { transform: scale(2.5); }
+        
+        .modal-right { flex: 1.1; padding: 35px; display: flex; flex-direction: column; background: #ffffff; border-left: 1px solid #e5e5e5; overflow-y: auto; }
+        .modal-right h2 { margin-top: 0; font-size: 1.4em; color: var(--dark); border-bottom: 2px solid var(--primary); padding-bottom: 10px; line-height: 1.3; }
+        #txtDescription { flex-grow: 1; margin: 15px 0; font-size: 15px; line-height: 1.6; color: #444; white-space: pre-wrap; }
+        
+        .badge-mes { display: inline-block; font-size: 0.55em; text-transform: uppercase; letter-spacing: 0.5px; background: #ffebeb; color: var(--primary); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-weight: 700; }
+        
+        .close-btn { position: absolute; top: 15px; right: 25px; color: #fff; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1001; }
+        .close-btn:hover { color: var(--primary); }
+
+        @media (max-width: 768px) {
+            .modal-container { flex-direction: column; height: 90vh; }
+            .modal-left { flex: 1; height: 45%; }
+            .modal-right { flex: 1; height: 55%; border-left: none; border-top: 1px solid #ddd; padding: 20px; }
+        }
+        @keyframes zoomIn { from {transform: scale(0.95); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Campaña Cross Selling</h1>
+        <p>Repositorio y Guías Mensuales para Asesores</p>
+    </header>
+
+    <div class="status-bar" id="statusBar" style="display:none;"></div>
+
+    <div class="upload-section" id="uploadSection" style="display:none;">
+        <p style="margin-top:0;">No se pudo cargar la carpeta automáticamente. Haz clic abajo y selecciona tu carpeta principal manualmente.</p>
+        <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;" />
+        <button class="upload-btn" onclick="document.getElementById('folderInput').click()">📁 Cargar Carpeta Principal (manual)</button>
+    </div>
+
+    <div class="layout-container" id="controlsSection">
+        <aside class="sidebar">
+            <div class="months-tabs" id="monthsButtons"></div>
+        </aside>
+
+        <div class="main-content">
+            <input type="text" id="searchInput" placeholder="Buscar por tema, nombre o en el contenido del flyer...">
+            <main class="gallery" id="gallery"></main>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="imageModal" class="modal">
+        <span class="close-btn" id="closeModal">&times;</span>
+        <div class="modal-container">
+            <!-- Contenedor del zoom -->
+            <div class="modal-left" id="modalLeft">
+                <img id="modalImg">
+            </div>
+            <div class="modal-right">
+                <h2 id="caption"></h2>
+                <div id="txtDescription"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ROOT_FOLDER = './';
+        const MANIFEST_FILE = ROOT_FOLDER + 'manifest.json';
+
+        let flyersData = [];
+        let mesesUnicos = new Set(["todos"]);
+
+        const gallery = document.getElementById('gallery');
+        const searchInput = document.getElementById('searchInput');
+        const monthsButtons = document.getElementById('monthsButtons');
+        const controlsSection = document.getElementById('controlsSection');
+        const uploadSection = document.getElementById('uploadSection');
+        const statusBar = document.getElementById('statusBar');
+        const folderInput = document.getElementById('folderInput');
+
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImg');
+        const modalLeft = document.getElementById('modalLeft');
+        const captionText = document.getElementById('caption');
+        const txtDescription = document.getElementById('txtDescription');
+        const closeModal = document.getElementById('closeModal');
+
+        // Función para mover el zoom interactivo
+        function updateZoomPosition(e) {
+            const rect = modalLeft.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const xPercent = (x / rect.width) * 100;
+            const yPercent = (y / rect.height) * 100;
+            modalImg.style.transformOrigin = `${xPercent}% ${yPercent}%`;
+        }
+
+        // Eventos del Zoom
+        modalLeft.addEventListener('click', function(e) {
+            this.classList.toggle('is-zoomed');
+            if (this.classList.contains('is-zoomed')) {
+                updateZoomPosition(e);
+            } else {
+                modalImg.style.transformOrigin = 'center center';
+            }
+        });
+
+        modalLeft.addEventListener('mousemove', function(e) {
+            if (this.classList.contains('is-zoomed')) {
+                updateZoomPosition(e);
+            }
+        });
+
+        function extraerTitulo(textoScript, nombreRespaldo) {
+            if (!textoScript || !textoScript.trim()) return nombreRespaldo;
+            const primeraLinea = textoScript.trim().split('\n')[0].trim();
+            return primeraLinea || nombreRespaldo;
+        }
+
+        async function obtenerListaArchivos() {
+            const r = await fetch(MANIFEST_FILE, { cache: 'no-store' });
+            if (!r.ok) {
+                throw new Error('No se encontró manifest.json');
+            }
+            const lista = await r.json();
+            return lista;
+        }
+
+        async function cargarFlyersAutomaticamente() {
+            statusBar.style.display = 'none';
+            statusBar.classList.remove('error');
+            gallery.innerHTML = '';
+
+            try {
+                const archivos = await obtenerListaArchivos();
+                const imagenes = archivos.filter(f => /\.(jpe?g|png|webp)$/i.test(f));
+                const textos = archivos.filter(f => f.toLowerCase().endsWith('.txt'));
+
+                if (imagenes.length === 0) throw new Error('No se encontraron imágenes.');
+
+                let textFiles = {};
+                await Promise.all(textos.map(async (t) => {
+                    try {
+                        const r = await fetch(ROOT_FOLDER + t, { cache: 'no-store' });
+                        textFiles[t] = r.ok ? await r.text() : '';
+                    } catch (e) {
+                        textFiles[t] = '';
+                    }
+                }));
+
+                flyersData = [];
+                mesesUnicos = new Set(["todos"]);
+
+                imagenes.forEach(imgName => {
+                    let pathParts = imgName.split('/');
+                    let mes = "general";
+                    let fileName = imgName;
+
+                    if (pathParts.length > 1) {
+                        mes = pathParts[pathParts.length - 2].toLowerCase();
+                        fileName = pathParts[pathParts.length - 1];
+                    }
+
+                    let baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+                    let nombre = baseName.replace(/_/g, ' ');
+
+                    mesesUnicos.add(mes);
+                    let txtName = imgName.substring(0, imgName.lastIndexOf('.')) + '.txt';
+                    let scriptTexto = textFiles[txtName] || "";
+
+                    flyersData.push({
+                        originalFile: imgName,
+                        displayName: nombre,
+                        title: extraerTitulo(scriptTexto, nombre),
+                        month: mes,
+                        url: ROOT_FOLDER + imgName,
+                        script: scriptTexto
+                    });
+                });
+
+                generarPestañasMeses();
+                renderFlyers();
+
+                uploadSection.style.display = "none";
+                controlsSection.style.display = "flex";
+            } catch (err) {
+                console.error(err);
+                statusBar.style.display = 'block';
+                statusBar.classList.add('error');
+                statusBar.textContent = '⚠️ ' + err.message + ' — usa la carga manual mientras tanto.';
+                uploadSection.style.display = "block";
+                controlsSection.style.display = "none";
+            }
+        }
+
+        folderInput.addEventListener('change', async (e) => {
+            const archivos = Array.from(e.target.files);
+            flyersData = [];
+            mesesUnicos = new Set(["todos"]);
+            let textFiles = {};
+
+            const imagenes = archivos.filter(f => f.type.startsWith('image/') || f.name.match(/\.(jpeg|jpg|png)$/i));
+            const textos = archivos.filter(f => f.name.endsWith('.txt'));
+
+            for (let t of textos) {
+                let pathKey = t.webkitRelativePath || t.name;
+                textFiles[pathKey] = await t.text();
+            }
+
+            imagenes.forEach(img => {
+                let filePath = img.webkitRelativePath || img.name;
+                let pathParts = filePath.split('/');
+                let mes = "general";
+                let fileName = img.name;
+
+                if (pathParts.length > 2) {
+                    mes = pathParts[pathParts.length - 2].toLowerCase();
+                } else if (pathParts.length === 2) {
+                    mes = pathParts[0].toLowerCase();
+                }
+
+                let baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+                let nombre = baseName.replace(/_/g, ' ');
+
+                mesesUnicos.add(mes);
+                
+                let txtPathKey = filePath.substring(0, filePath.lastIndexOf('.')) + '.txt';
+                let scriptTexto = textFiles[txtPathKey] || "";
+
+                flyersData.push({
+                    originalFile: img.name,
+                    displayName: nombre,
+                    title: extraerTitulo(scriptTexto, nombre),
+                    month: mes,
+                    url: URL.createObjectURL(img),
+                    script: scriptTexto
+                });
+            });
+
+            generarPestañasMeses();
+            renderFlyers();
+
+            uploadSection.style.display = "none";
+            controlsSection.style.display = "flex";
+            statusBar.style.display = 'none';
+        });
+
+        function generarPestañasMeses() {
+            monthsButtons.innerHTML = '';
+            
+            const listaOrdenada = Array.from(mesesUnicos).sort((a, b) => {
+                if (a === 'todos') return -1;
+                if (b === 'todos') return 1;
+                return a.localeCompare(b);
+            });
+
+            listaOrdenada.forEach(mes => {
+                const btn = document.createElement('button');
+                btn.className = mes === 'todos' ? 'btn-month active' : 'btn-month';
+                btn.dataset.month = mes;
+                btn.innerText = mes === 'todos' ? 'Todos los Meses' : mes;
+                
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.btn-month').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    renderFlyers(e.target.dataset.month, searchInput.value);
+                });
+                monthsButtons.appendChild(btn);
+            });
+        }
+
+        function renderFlyers(filterMonth = 'todos', searchTerm = '') {
+            gallery.innerHTML = ''; 
+            const filteredFlyers = flyersData.filter(f => {
+                const matchMonth = filterMonth === 'todos' || f.month === filterMonth;
+                const term = searchTerm.toLowerCase();
+                const matchSearch = f.title.toLowerCase().includes(term) || 
+                                    f.displayName.toLowerCase().includes(term) || 
+                                    f.script.toLowerCase().includes(term); 
+                return matchMonth && matchSearch;
+            });
+
+            if (filteredFlyers.length === 0) {
+                gallery.innerHTML = '<div class="no-results">No se encontraron flyers para esta búsqueda.</div>';
+                return;
+            }
+
+            filteredFlyers.forEach(flyer => {
+                const card = document.createElement('div');
+                card.className = 'flyer-card';
+                card.innerHTML = `
+                    <img src="${flyer.url}" class="flyer-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\'><rect width=\\'100\\' height=\\'100\\' fill=\\'%23ddd\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23666\\'>Sin Imagen</text></svg>'">
+                    <div class="flyer-info">
+                        <h3 class="flyer-name">${flyer.title}</h3>
+                        <span class="tag-month">${flyer.month}</span>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => abrirModal(flyer));
+                gallery.appendChild(card);
+            });
+        }
+
+        function abrirModal(flyer) {
+            modal.style.display = "flex";
+            modalImg.src = flyer.url;
+            captionText.innerHTML = "";
+            txtDescription.innerText = "";
+            
+            // Reiniciar zoom al abrir un flyer nuevo
+            modalLeft.classList.remove('is-zoomed');
+            modalImg.style.transformOrigin = 'center center';
+
+            captionText.innerHTML = `
+                <div>
+                    <span class="badge-mes">${flyer.month}</span>
+                </div>
+                ${flyer.title}
+            `;
+
+            if (flyer.script.trim() !== "") {
+                const cuerpoTexto = flyer.script.trim().split('\n').slice(1).join('\n').trim();
+                txtDescription.innerText = cuerpoTexto || "No se ha encontrado texto descriptivo para este flyer.";
+            } else {
+                txtDescription.innerText = "No se ha encontrado texto descriptivo para este flyer.";
+            }
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            const currentMonth = document.querySelector('.btn-month.active').dataset.month;
+            renderFlyers(currentMonth, e.target.value);
+        });
+
+        // Cerrar modal y reiniciar zoom
+        function cerrarModalYLimpiar() {
+            modal.style.display = "none";
+            modalLeft.classList.remove('is-zoomed');
+            modalImg.style.transformOrigin = 'center center';
+        }
+
+        closeModal.addEventListener('click', cerrarModalYLimpiar);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) cerrarModalYLimpiar();
+        });
+
+        window.addEventListener('DOMContentLoaded', cargarFlyersAutomaticamente);
+    </script>
+</body>
+</html>
